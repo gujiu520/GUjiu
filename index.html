@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>圆柱压缩弹簧测试与设计系统</title>
+  <!-- 引入外部资源 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  
+  <!-- 引入自定义文件 -->
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="script.js" defer></script>
+  
+  <!-- Tailwind 配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#36CFC9',
+            accent: '#FF7D00',
+            neutral: '#F5F7FA',
+            dark: '#1D2129',
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          zIndex: {
+            'modal': 1000,
+            'header': 900,
+            'button': 500,
+            'tooltip': 400,
+            'form': 300,
+          }
+        },
+      }
+    }
+  </script>
+</head>
+<body class="font-inter bg-neutral min-h-screen text-dark">
+  <!-- 顶部导航 -->
+  <header class="bg-white shadow-sm sticky top-0 z-[header] transition-all duration-300" id="header">
+    <div class="container mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center">
+      <div class="flex items-center mb-3 md:mb-0">
+        <i class="fa fa-cogs text-primary text-2xl mr-2"></i>
+        <h1 class="text-[clamp(1.2rem,5vw,2rem)] font-bold text-primary">圆柱压缩弹簧测试与设计系统</h1>
+      </div>
+      <div class="flex space-x-3">
+        <button id="themeToggle" class="p-3 rounded-full bg-neutral btn-hover touch-friendly" aria-label="切换主题">
+          <i class="fa fa-moon-o text-dark"></i>
+        </button>
+        <button id="helpBtn" class="p-3 rounded-full bg-neutral btn-hover touch-friendly" aria-label="帮助">
+          <i class="fa fa-question-circle text-dark"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main class="container mx-auto px-4 py-6">
+    <!-- 模式选择 -->
+    <div class="bg-white rounded-xl p-5 mb-6 card-shadow relative z-10">
+      <div class="flex flex-col md:flex-row justify-center items-start md:items-center mb-4 mode-selection">
+        <h2 class="text-lg font-semibold mb-2 md:mb-0 md:mr-4">工作模式选择：</h2>
+        <div class="flex rounded-lg overflow-hidden border border-primary/20 w-full md:w-auto mode-buttons">
+          <button id="designMode" class="mode-btn active">
+            参数设计模式
+          </button>
+          <button id="testMode" class="mode-btn inactive">
+            性能测试模式
+          </button>
+        </div>
+      </div>
+      
+      <!-- 模式说明 -->
+      <div id="modeDescription" class="text-gray-600 text-sm p-3 bg-primary/5 rounded-lg">
+        <p>参数设计模式：输入设计要求（最大工作载荷、最大压缩量等），钢丝直径、自由高度和弹簧中径可选填（不填则自动生成，填写则按固定值计算）。</p>
+      </div>
+    </div>
+    
+    <!-- 输入表单区 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div id="inputForm" class="bg-white rounded-xl p-5 card-shadow z-[form] relative">
+        <h2 class="text-xl font-bold mb-5 text-primary flex items-center">
+          <i class="fa fa-pencil-square-o mr-2"></i>参数输入
+        </h2>
+        
+        <!-- 设计模式表单 -->
+        <div id="designForm" class="space-y-4">
+          <div class="form-group">
+            <label for="maxLoad" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              最大工作载荷 <span class="text-red-500">*</span>
+              <span class="tooltip-text">弹簧在工作时需要承受的最大载荷（N），是弹簧设计的核心参数之一。</span>
+            </label>
+            <div class="unit-select-container">
+              <input type="number" id="maxLoad" class="w-full px-4 py-3 border border-gray-300 unit-input focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="0.1" step="0.1" required placeholder="例如：500">
+              <select id="maxLoadUnit" class="unit-select">
+                <option value="N" selected>N</option>
+                <option value="kgf">kgf</option>
+                <option value="lbf">lbf</option>
+              </select>
+              <i class="fa fa-chevron-down unit-select-arrow"></i>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="maxDeflection" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              最大压缩量 <span class="text-red-500">*</span>
+              <span class="tooltip-text">弹簧在最大工作载荷下允许的最大压缩变形量（mm），需根据安装空间合理设计。</span>
+            </label>
+            <div class="unit-select-container">
+              <input type="number" id="maxDeflection" class="w-full px-4 py-3 border border-gray-300 unit-input focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="0.1" step="0.1" required placeholder="例如：20">
+              <select id="maxDeflectionUnit" class="unit-select">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="inch">inch</option>
+              </select>
+              <i class="fa fa-chevron-down unit-select-arrow"></i>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="frequency" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              工作频率 <span class="text-red-500">*</span>
+              <span class="tooltip-text">弹簧在工作时的振动频率（Hz），用于避免共振现象。一般应使弹簧的固有频率远离工作频率的1.2~2.0倍范围。</span>
+            </label>
+            <div class="unit-select-container">
+              <input type="number" id="frequency" class="w-full px-4 py-3 border border-gray-300 unit-input focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="0" step="1" required placeholder="例如：50">
+              <select id="frequencyUnit" class="unit-select">
+                <option value="Hz" selected>Hz</option>
+                <option value="kHz">kHz</option>
+              </select>
+              <i class="fa fa-chevron-down unit-select-arrow"></i>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="temperature" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              环境温度（默认25℃，可修改）
+              <span class="tooltip-text">弹簧工作环境的温度（℃），影响材料的弹性模量和许用应力，默认常温25℃，可根据实际工况修改。</span>
+            </label>
+            <div class="unit-select-container">
+              <input type="number" id="temperature" class="w-full px-4 py-3 border border-gray-300 unit-input focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" value="25" min="-40" max="300" step="1" required placeholder="例如：25">
+              <select id="temperatureUnit" class="unit-select">
+                <option value="celsius" selected>℃</option>
+                <option value="fahrenheit">℉</option>
+              </select>
+              <i class="fa fa-chevron-down unit-select-arrow"></i>
+            </div>
+            <p class="optional-hint">提示：默认25℃常温，高温或低温环境下请根据实际情况修改</p>
+          </div>
+          
+          <!-- 新增：钢丝直径（可选） -->
+          <div class="form-group">
+            <label for="optWireDiameter" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              钢丝直径（可选）
+              <span class="tooltip-text">制造弹簧所用钢丝的直径（mm），不填写则系统自动优化生成。</span>
+            </label>
+            <div class="unit-select-container">
+              <input type="number" id="optWireDiameter" class="w-full px-4 py-3 border border-gray-300 unit-input focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="0.5" step="0.01" placeholder="例如：3.0（不填则自动生成）">
+              <select id="optWireDiameterUnit" class="unit-select">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="inch">inch</option>
+              </select>
+              <i class="fa fa-chevron-down unit-select-arrow"></i>
+            </div>
+            <p class="optional-hint">提示：不输入则按常规优化生成，输入则按固定值计算其他参数</p>
+          </div>
+          
+          <!-- 自由高度（可选） -->
+          <div class="form-group">
+            <label for="optFreeHeight" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              自由高度（可选）
+              <span class="tooltip-text">弹簧在无载荷状态下的总高度（mm），不填写则系统自动优化生成。</span>
+            </label>
+            <div class="unit-select-container">
+              <input type="number" id="optFreeHeight" class="w-full px-4 py-3 border border-gray-300 unit-input focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="5" step="0.1" placeholder="例如：50（不填则自动生成）">
+              <select id="optFreeHeightUnit" class="unit-select">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="inch">inch</option>
+              </select>
+              <i class="fa fa-chevron-down unit-select-arrow"></i>
+            </div>
+            <p class="optional-hint">提示：不输入则按常规优化生成，输入则按固定值计算其他参数</p>
+          </div>
+          
+          <!-- 弹簧中径（可选） -->
+          <div class="form-group">
+            <label for="optSpringDiameter" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              弹簧中径（可选）
+              <span class="tooltip-text">弹簧线圈的平均直径（mm），不填写则系统自动优化生成。</span>
+            </label>
+            <div class="unit-select-container">
+              <input type="number" id="optSpringDiameter" class="w-full px-4 py-3 border border-gray-300 unit-input focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="2" step="0.1" placeholder="例如：30（不填则自动生成）">
+              <select id="optSpringDiameterUnit" class="unit-select">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="inch">inch</option>
+              </select>
+              <i class="fa fa-chevron-down unit-select-arrow"></i>
+            </div>
+            <p class="optional-hint">提示：不输入则按常规优化生成，输入则按固定值计算其他参数</p>
+          </div>
+          
+          <div class="form-group">
+            <label for="material" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              材料类型 <span class="text-red-500">*</span>
+              <span class="tooltip-text">选择弹簧的制造材料，不同材料具有不同的弹性模量、剪切模量和许用应力等性能参数。</span>
+            </label>
+            <select id="material" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base">
+              <option value="carbonSteel">碳素弹簧钢 (65Mn)</option>
+              <option value="stainlessSteel">不锈钢 (304)</option>
+              <option value="alloySteel">合金弹簧钢 (50CrVA)</option>
+              <option value="siliconSteel">硅锰弹簧钢 (60Si2Mn)</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- 测试模式表单 (默认隐藏) -->
+        <div id="testForm" class="space-y-4 hidden">
+          <div class="form-group">
+            <label for="wireDiameter" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              钢丝直径 (mm) <span class="text-red-500">*</span>
+              <span class="tooltip-text">制造弹簧所用钢丝的直径（mm），直接影响弹簧的刚度和承载能力。</span>
+            </label>
+            <div class="relative">
+              <input type="number" id="wireDiameter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="0.1" step="0.01" required>
+              <span class="absolute right-3 top-3 text-gray-400">mm</span>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="springDiameter" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              弹簧中径 (mm) <span class="text-red-500">*</span>
+              <span class="tooltip-text">弹簧线圈的平均直径（mm），是弹簧的重要几何参数，影响弹簧的稳定性和刚度。</span>
+            </label>
+            <div class="relative">
+              <input type="number" id="springDiameter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="0.5" step="0.1" required>
+              <span class="absolute right-3 top-3 text-gray-400">mm</span>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="freeHeight" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              自由高度 (mm) <span class="text-red-500">*</span>
+              <span class="tooltip-text">弹簧在无载荷状态下的总高度（mm），是弹簧安装和工作空间设计的重要参数。</span>
+            </label>
+            <div class="relative">
+              <input type="number" id="freeHeight" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="1" step="0.1" required>
+              <span class="absolute right-3 top-3 text-gray-400">mm</span>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="activeCoils" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              有效圈数 <span class="text-red-500">*</span>
+              <span class="tooltip-text">参与弹性变形的弹簧圈数，直接影响弹簧的刚度和弹性性能。</span>
+            </label>
+            <div class="relative">
+              <input type="number" id="activeCoils" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="1" step="0.5" required>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="supportCoils" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              支撑圈数 <span class="text-red-500">*</span>
+              <span class="tooltip-text">用于支撑和定位的弹簧圈数，不参与主要弹性变形，一般为1.5~2.5圈。</span>
+            </label>
+            <div class="relative">
+              <input type="number" id="supportCoils" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base" min="0" step="0.5" required>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="materialTest" class="block text-sm font-medium text-gray-700 mb-1 tooltip">
+              材料类型 <span class="text-red-500">*</span>
+              <span class="tooltip-text">弹簧的制造材料，不同材料具有不同的力学性能，影响弹簧的承载能力和使用寿命。</span>
+            </label>
+            <select id="materialTest" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-base">
+              <option value="carbonSteel">碳素弹簧钢 (65Mn)</option>
+              <option value="stainlessSteel">不锈钢 (304)</option>
+              <option value="alloySteel">合金弹簧钢 (50CrVA)</option>
+              <option value="siliconSteel">硅锰弹簧钢 (60Si2Mn)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="mt-5 flex flex-col sm:flex-row justify-center gap-3">
+          <button id="calculateBtn" class="btn-primary flex items-center justify-center">
+            <i class="fa fa-calculator mr-2"></i> 计算/生成
+          </button>
+        </div>
+      </div>
+      
+      <!-- 结果展示区 -->
+      <div id="resultSection" class="bg-white rounded-xl p-5 card-shadow hidden z-[form] relative result-section">
+        <h2 class="text-xl font-bold mb-5 text-primary flex items-center">
+          <i class="fa fa-bar-chart mr-2"></i>计算结果
+        </h2>
+        
+        <!-- 弹簧图形展示区 -->
+        <div class="flex justify-center mb-5 spring-visualization" id="springVisualization">
+          <svg width="300" height="180" viewBox="0 0 320 200">
+            <!-- 底座 -->
+            <rect x="40" y="170" width="240" height="12" fill="#165DFF" rx="3" />
+            <rect x="60" y="182" width="200" height="6" fill="#165DFF80" rx="2" />
+            
+            <!-- 弹簧主体 -->
+            <path id="springPath" d="M 40 170 Q 60 140, 80 170 T 120 170 T 160 170 T 200 170 T 240 170 T 280 170" 
+                  stroke="#165DFF" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+            
+            <!-- 弹簧上下固定端 -->
+            <circle cx="40" cy="170" r="4" fill="#165DFF" />
+            <circle cx="280" cy="170" r="4" fill="#165DFF" />
+            
+            <!-- 承压块 -->
+            <rect id="loadBlock" x="120" y="40" width="80" height="30" fill="#FF7D00" rx="6" />
+            <rect id="loadShadow" x="120" y="70" width="80" height="8" fill="#FF7D0080" rx="3" />
+            
+            <!-- 压力箭头 -->
+            <path d="M 160 25 L 152 10 L 168 10 Z" fill="#FF7D00" />
+            <line x1="160" y1="30" x2="160" y2="40" stroke="#FF7D00" stroke-width="2" />
+            <text x="160" y="8" text-anchor="middle" fill="#FF7D00" font-size="12" font-weight="bold">工作载荷</text>
+            
+            <!-- 弹簧标注 -->
+            <text x="160" y="150" text-anchor="middle" fill="#165DFF" font-size="11" font-weight="bold">圆柱压缩弹簧</text>
+          </svg>
+        </div>
+        
+        <!-- 结果数据卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 grid-cols-mobile">
+          <div class="bg-neutral p-4 rounded-lg">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">基本参数</h3>
+            <div class="space-y-2 text-sm" id="basicResults">
+              <!-- 动态填充基本参数 -->
+            </div>
+          </div>
+          
+          <div class="bg-neutral p-4 rounded-lg">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">性能参数</h3>
+            <div class="space-y-2 text-sm" id="performanceResults">
+              <!-- 动态填充性能参数 -->
+            </div>
+          </div>
+        </div>
+        
+        <!-- 数据可视化图表 -->
+        <div class="h-56 mb-5 chart-container">
+          <canvas id="resultsChart"></canvas>
+        </div>
+        
+        <!-- 稳定性校核结果 -->
+        <div id="stabilityResult" class="p-3 rounded-lg mb-5">
+          <!-- 动态填充稳定性结果 -->
+        </div>
+        
+        <div class="flex flex-col sm:flex-row justify-center gap-3">
+          <button id="exportBtn" class="btn-primary flex items-center justify-center bg-secondary">
+            <i class="fa fa-download mr-2"></i> 导出结果
+          </button>
+          <button id="resetBtn" class="btn-secondary flex items-center justify-center">
+            <i class="fa fa-refresh mr-2"></i> 重置
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 参考资料 -->
+    <div class="bg-white rounded-xl p-5 card-shadow relative z-10">
+      <h2 class="text-xl font-bold mb-4 text-primary flex items-center">
+        <i class="fa fa-book mr-2"></i>参考资料
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="p-3 border border-gray-100 rounded-lg hover:border-primary/30 transition-all">
+          <h3 class="font-medium mb-2 text-sm">弹簧材料性能参数</h3>
+          <p class="text-xs text-gray-600">包含各类弹簧材料的弹性模量、剪切模量、许用应力等关键参数</p>
+        </div>
+        <div class="p-3 border border-gray-100 rounded-lg hover:border-primary/30 transition-all">
+          <h3 class="font-medium mb-2 text-sm">设计计算公式</h3>
+          <p class="text-xs text-gray-600">弹簧刚度、剪切应力、稳定性校核等核心计算公式说明</p>
+        </div>
+        <div class="p-3 border border-gray-100 rounded-lg hover:border-primary/30 transition-all">
+          <h3 class="font-medium mb-2 text-sm">行业标准规范</h3>
+          <p class="text-xs text-gray-600">圆柱压缩弹簧相关的国家和行业标准参考</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 底部版权区 -->
+  <footer class="bg-dark text-white py-5 mt-8 w-full">
+    <div class="w-full px-4">
+      <div class="relative overflow-hidden h-10 flex items-center footer-scroll">
+        <div class="scroll-text whitespace-nowrap">
+          <span class="gradient-text text-sm font-medium footer-text">
+            本程序由AI生成 声云设计公司优化 如有侵权联系删除 675309897@qq.com 本产品仅供测试使用。网站生成的数据仅作演示，不作任何承诺或保证。
+          </span>
+        </div>
+      </div>
+      <div class="text-center text-gray-400 text-xs mt-3">
+        <p>© 2025 圆柱压缩弹簧测试与设计系统 - 保留所有权利</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 提示弹窗 -->
+  <div id="notificationModal" class="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl p-5 max-w-md w-full mx-4 transform transition-all modal-content">
+      <div class="text-center">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 text-primary mb-3">
+          <i class="fa fa-info text-xl"></i>
+        </div>
+        <h3 class="text-lg font-bold mb-2">提示信息</h3>
+        <p id="modalMessage" class="text-gray-600 mb-4 text-sm">本产品仅供测试使用。网站生成的数据仅作演示，不作任何承诺或保证。</p>
+        <button id="closeModal" class="btn-primary w-full">
+          确认
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 帮助弹窗 -->
+  <div id="helpModal" class="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl p-5 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto modal-content">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-lg font-bold text-primary">使用帮助</h3>
+        <button id="closeHelpModal" class="text-gray-400 hover:text-gray-600 touch-friendly w-10 h-10 flex items-center justify-center">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <div class="space-y-3 text-gray-700 text-sm">
+        <div>
+          <h4 class="font-medium text-primary">1. 模式选择</h4>
+          <p class="text-xs">参数设计模式：输入设计要求，系统生成弹簧参数；性能测试模式：输入已有弹簧参数，计算其性能。</p>
+        </div>
+        <div>
+          <h4 class="font-medium text-primary">2. 参数输入</h4>
+          <p class="text-xs">带*为必填项，钢丝直径、自由高度和弹簧中径为可选参数（不填自动生成，填写则按固定值计算），请确保输入合理的数值范围。</p>
+        </div>
+        <div>
+          <h4 class="font-medium text-primary">3. 计算与结果</h4>
+          <p class="text-xs">点击"计算/生成"按钮获取结果，系统将展示弹簧参数、性能数据和稳定性校核结果。</p>
+        </div>
+        <div>
+          <h4 class="font-medium text-primary">4. 数据导出</h4>
+          <p class="text-xs">可通过"导出结果"按钮将计算结果保存为PDF格式，便于后续参考。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
